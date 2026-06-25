@@ -1,24 +1,35 @@
-from typing import List
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 
-def chunk_text(text: str, chunk_size: int = 1000, overlap: int = 200) -> List[str]:
-    """Split text into overlapping chunks (by words).
+CHUNK_SIZE = 1000
+CHUNK_OVERLAP = 200
 
-    Args:
-        text: input string
-        chunk_size: approximate chunk size in words
-        overlap: overlap between chunks in words
+
+def chunk_pages(pages):
+    """Split extracted PDF pages into smaller text chunks.
+
+    Each returned chunk keeps the PDF file name, page number, and a chunk ID.
     """
-    if not text:
-        return []
-    tokens = text.split()
-    if chunk_size <= 0:
-        return [text]
+    text_splitter = RecursiveCharacterTextSplitter(
+        chunk_size=CHUNK_SIZE,
+        chunk_overlap=CHUNK_OVERLAP,
+    )
+
     chunks = []
-    i = 0
-    n = len(tokens)
-    while i < n:
-        chunk = tokens[i : i + chunk_size]
-        chunks.append(" ".join(chunk))
-        i += max(1, chunk_size - overlap)
+
+    for page in pages:
+        page_chunks = text_splitter.split_text(page["text"])
+
+        for chunk_index, chunk_text in enumerate(page_chunks, start=1):
+            chunks.append(
+                {
+                    "text": chunk_text,
+                    "metadata": {
+                        "file_name": page["file_name"],
+                        "page_number": page["page_number"],
+                        "chunk_id": chunk_index,
+                    },
+                }
+            )
+
     return chunks
