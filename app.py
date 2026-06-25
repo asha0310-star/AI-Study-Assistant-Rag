@@ -3,6 +3,7 @@ from dotenv import load_dotenv
 
 from src.chunker import chunk_pages
 from src.pdf_loader import extract_text_from_pdfs
+from src.rag_pipeline import answer_question, get_source_references
 from src.vector_store import search_chunks, store_chunks
 
 
@@ -27,7 +28,8 @@ with st.sidebar:
     st.write("3. Show page and chunk counts")
     st.write("4. Store chunks in ChromaDB")
     st.write("5. Search retrieved chunks")
-    st.info("Gemini answers will be added in a later version.")
+    st.write("6. Generate a Gemini answer")
+    st.info("Answers use only the retrieved document chunks.")
 
 uploaded_files = st.file_uploader(
     "Upload PDF files",
@@ -65,6 +67,7 @@ if uploaded_files:
         st.warning("No readable text was found in the uploaded PDF files.")
 
     st.subheader("Ask a question")
+    beginner_mode = st.toggle("Beginner mode", value=True)
     question = st.text_input("Search your uploaded notes")
 
     if question:
@@ -82,5 +85,20 @@ if uploaded_files:
                     st.caption(f"Distance: {chunk['distance']:.4f}")
         else:
             st.warning("No chunks were found. Upload PDFs before searching.")
+
+        if st.button("Generate answer with Gemini"):
+            with st.spinner("Generating answer from retrieved chunks..."):
+                answer = answer_question(question, retrieved_chunks, beginner_mode)
+
+            st.subheader("Final answer")
+            st.write(answer)
+
+            st.subheader("Source references")
+            source_references = get_source_references(retrieved_chunks)
+            if source_references:
+                for source in source_references:
+                    st.write(f"- {source['file_name']} — page {source['page_number']}")
+            else:
+                st.write("No source references available.")
 else:
     st.info("Upload one or more PDF files to begin.")
