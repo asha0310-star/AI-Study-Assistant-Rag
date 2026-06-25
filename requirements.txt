@@ -1,6 +1,6 @@
-numpy
+streamlit
+pypdf
 chromadb
-sentence-transformers
-PyPDF2
+google-generativeai
 python-dotenv
-transformers
+langchain-text-splitters
