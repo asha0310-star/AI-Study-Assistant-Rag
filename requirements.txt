@@ -3,3 +3,4 @@ pypdf
 chromadb
 google-generativeai
 python-dotenv
+langchain-text-splitters

@@ -1,6 +1,7 @@
 import streamlit as st
 from dotenv import load_dotenv
 
+from src.chunker import chunk_pages
 from src.pdf_loader import extract_text_from_pdfs
 
 
@@ -22,7 +23,7 @@ with st.sidebar:
     st.header("MVP Features")
     st.write("1. Upload PDF files")
     st.write("2. Extract text from each page")
-    st.write("3. Show page count")
+    st.write("3. Show page and chunk counts")
     st.write("4. Preview extracted text")
     st.info("Question answering and vector search will be added in a later version.")
 
@@ -35,8 +36,13 @@ uploaded_files = st.file_uploader(
 if uploaded_files:
     with st.spinner("Extracting text from your PDFs..."):
         pages, combined_text = extract_text_from_pdfs(uploaded_files)
+        chunks = chunk_pages(pages)
 
-    st.success(f"Extracted text from {len(pages)} page(s).")
+    st.success("PDFs processed successfully.")
+
+    st.subheader("Extraction summary")
+    st.write(f"Pages extracted: {len(pages)}")
+    st.write(f"Chunks created: {len(chunks)}")
 
     st.subheader("Uploaded files")
     for uploaded_file in uploaded_files:
