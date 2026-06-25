@@ -1,22 +1,25 @@
-# Virtual environment
-venv/
+# Environment variables
+.env
 
 # Python
 __pycache__/
 *.py[cod]
-
-env/.env
-.env
 .pytest_cache/
 
-# Chroma DB (local storage)
+# Virtual environments
+venv/
+.venv/
+env/
+
+# Local app data
 chroma_db/
 
-# macOS
+# Operating system files
 .DS_Store
+
+# Editor files
+.vscode/
+.idea/
 
 # Logs
 *.log
-
-# Editor
-.vscode/
