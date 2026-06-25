@@ -23,3 +23,5 @@ chroma_db/
 
 # Logs
 *.log
+Icon?
+.DS_Store
