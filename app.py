@@ -1,10 +1,35 @@
-import os
-import tempfile
-
 import streamlit as st
+from dotenv import load_dotenv
 
-from src.rag_pipeline import RAGPipeline
-from src.pdf_loader import extract_text_from_pdf
+from src.chunker import chunk_pages
+from src.pdf_loader import extract_text_from_pdfs
+from src.rag_pipeline import answer_question, get_source_references
+from src.vector_store import search_chunks, store_chunks
+
+
+load_dotenv()
+
+st.set_page_config(
+    page_title="AI Student Study Assistant RAG",
+    page_icon="📚",
+    layout="centered",
+)
+
+st.title("📚 AI Student Study Assistant RAG")
+st.write(
+    "Upload one or more PDF study files. This first MVP extracts text, "
+    "counts the pages, and shows a short preview."
+)
+
+with st.sidebar:
+    st.header("MVP Features")
+    st.write("1. Upload PDF files")
+    st.write("2. Extract text from each page")
+    st.write("3. Show page and chunk counts")
+    st.write("4. Store chunks in ChromaDB")
+    st.write("5. Search retrieved chunks")
+    st.write("6. Generate a Gemini answer")
+    st.info("Answers use only the retrieved document chunks.")
 
 uploaded_files = st.file_uploader(
     "Upload PDF files",
@@ -13,82 +38,67 @@ uploaded_files = st.file_uploader(
 )
 
 if uploaded_files:
-    all_documents = []
+    with st.spinner("Extracting text from your PDFs..."):
+        pages, combined_text = extract_text_from_pdfs(uploaded_files)
+        chunks = chunk_pages(pages)
+        chunks_saved = store_chunks(chunks)
 
+    st.success("PDFs processed successfully.")
+
+    st.subheader("Extraction summary")
+    st.write(f"Pages extracted: {len(pages)}")
+    st.write(f"Chunks created: {len(chunks)}")
+    st.write(f"Chunks saved to ChromaDB: {chunks_saved}")
+
+    st.subheader("Uploaded files")
     for uploaded_file in uploaded_files:
-        docs = extract_text_from_pdf(uploaded_file)
-        all_documents.extend(docs)
+        st.write(f"- {uploaded_file.name}")
 
-    st.success(f"Extracted text from {len(all_documents)} pages.")
-
-    with st.expander("Preview extracted text"):
-        st.write(all_documents[0]["text"][:1000])
-st.set_page_config(page_title="AI Study Assistant", layout="wide")
-
-
-# --- Helpers ---
-
-def save_uploaded_files(uploaded_files):
-    """Save uploaded PDFs to a temp folder and return that folder path."""
-    temp_dir = tempfile.mkdtemp()
-    for uf in uploaded_files:
-        path = os.path.join(temp_dir, uf.name)
-        with open(path, "wb") as f:
-            f.write(uf.getbuffer())
-    return temp_dir
-
-
-@st.cache_resource
-def get_pipeline():
-    """Create the RAG pipeline once and reuse it across reruns."""
-    return RAGPipeline()
-
-
-# --- App state ---
-
-pipeline = get_pipeline()
-
-if "ingested" not in st.session_state:
-    st.session_state.ingested = False
-
-
-# --- UI ---
-
-st.title("AI Student Study Assistant")
-st.write("Upload lecture notes or PDFs and ask questions from them.")
-
-uploaded_files = st.file_uploader(
-    "Upload PDF files",
-    type=["pdf"],
-    accept_multiple_files=True,
-)
-
-if uploaded_files:
-    st.success(f"{len(uploaded_files)} file(s) uploaded.")
-    if st.button("Process files"):
-        with st.spinner("Reading and indexing your notes..."):
-            pdf_dir = save_uploaded_files(uploaded_files)
-            pipeline.ingest_pdfs(pdf_dir)
-            st.session_state.ingested = True
-        st.success("Files processed. You can now ask questions.")
-
-
-st.divider()
-
-question = st.text_input("Ask a question from your uploaded notes")
-
-if question:
-    if not st.session_state.ingested:
-        st.warning("Please upload and process some PDFs first.")
+    st.subheader("Text preview")
+    if combined_text.strip():
+        preview_text = combined_text[:1000]
+        st.text_area(
+            "First 1,000 characters",
+            value=preview_text,
+            height=250,
+            disabled=True,
+        )
     else:
-        with st.spinner("Searching your notes..."):
-            answer = pipeline.query(question)
-        st.subheader("Answer")
-        st.write(answer)
+        st.warning("No readable text was found in the uploaded PDF files.")
 
-        with st.expander("Generate a quiz from these notes"):
-            if st.button("Make quiz"):
-                quiz = pipeline.generate_quiz(question)
-                for i, qa in enumerate(quiz, start=1):
-                    st.markdown(f"**Q{i}.** {qa['question']}")
-                    st.markdown(f"*Answer:* {qa['answer']}")
+    st.subheader("Ask a question")
+    beginner_mode = st.toggle("Beginner mode", value=True)
+    question = st.text_input("Search your uploaded notes")
+
+    if question:
+        retrieved_chunks = search_chunks(question)
+
+        st.subheader("Retrieved chunks")
+        if retrieved_chunks:
+            for index, chunk in enumerate(retrieved_chunks, start=1):
+                metadata = chunk["metadata"]
+                with st.expander(
+                    f"Chunk {index}: {metadata['file_name']} "
+                    f"page {metadata['page_number']}"
+                ):
+                    st.write(chunk["text"])
+                    st.caption(f"Distance: {chunk['distance']:.4f}")
+        else:
+            st.warning("No chunks were found. Upload PDFs before searching.")
+
+        if st.button("Generate answer with Gemini"):
+            with st.spinner("Generating answer from retrieved chunks..."):
+                answer = answer_question(question, retrieved_chunks, beginner_mode)
+
+            st.subheader("Final answer")
+            st.write(answer)
+
+            st.subheader("Source references")
+            source_references = get_source_references(retrieved_chunks)
+            if source_references:
+                for source in source_references:
+                    st.write(f"- {source['file_name']} — page {source['page_number']}")
+            else:
+                st.write("No source references available.")
+else:
+    st.info("Upload one or more PDF files to begin.")
