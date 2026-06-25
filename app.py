@@ -4,7 +4,25 @@ import tempfile
 import streamlit as st
 
 from src.rag_pipeline import RAGPipeline
+from src.pdf_loader import extract_text_from_pdf
 
+uploaded_files = st.file_uploader(
+    "Upload PDF files",
+    type=["pdf"],
+    accept_multiple_files=True,
+)
+
+if uploaded_files:
+    all_documents = []
+
+    for uploaded_file in uploaded_files:
+        docs = extract_text_from_pdf(uploaded_file)
+        all_documents.extend(docs)
+
+    st.success(f"Extracted text from {len(all_documents)} pages.")
+
+    with st.expander("Preview extracted text"):
+        st.write(all_documents[0]["text"][:1000])
 st.set_page_config(page_title="AI Study Assistant", layout="wide")
 
 
