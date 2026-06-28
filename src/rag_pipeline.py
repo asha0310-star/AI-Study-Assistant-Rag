@@ -1,10 +1,15 @@
 import os
 
 from dotenv import load_dotenv
+from google.api_core.exceptions import InvalidArgument, NotFound
 
 
 NOT_FOUND_MESSAGE = "I could not find this clearly in the uploaded documents."
-GEMINI_MODEL = "gemini-1.5-flash"
+GEMINI_MODELS = [
+    "gemini-2.5-flash",
+    "gemini-2.5-flash-lite",
+    "gemini-2.0-flash",
+]
 
 
 load_dotenv()
@@ -78,10 +83,24 @@ Question:
 """
 
     genai.configure(api_key=api_key)
-    model = genai.GenerativeModel(GEMINI_MODEL)
-    response = model.generate_content(prompt)
+    last_error = None
 
-    if not response.text:
-        return NOT_FOUND_MESSAGE
+    for model_name in GEMINI_MODELS:
+        try:
+            model = genai.GenerativeModel(model_name)
+            response = model.generate_content(prompt)
 
-    return response.text.strip()
+            if response.text:
+                return response.text.strip()
+
+        except (NotFound, InvalidArgument) as error:
+            last_error = error
+            continue
+
+    if last_error:
+        return (
+            "Gemini could not generate an answer with the available models. "
+            f"Last error: {last_error}"
+        )
+
+    return NOT_FOUND_MESSAGE
