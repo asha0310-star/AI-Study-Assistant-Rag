@@ -33,7 +33,7 @@ Requires Python 3.10+.
 
 ```bash
 # 1. Clone and enter the project
-git clone <your-repo-url>
+git clone <https://github.com/asha0310-star/AI-Study-Assistant-Rag>
 cd AI-Study-Assistant-Rag
 
 # 2. Create a virtual environment
