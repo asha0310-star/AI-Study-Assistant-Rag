@@ -1,6 +1,18 @@
-streamlit
-pypdf
-chromadb
-google-generativeai
-python-dotenv
-langchain-text-splitters
+# Core app
+streamlit==1.58.0
+python-dotenv==1.2.2
+
+# PDF parsing
+pypdf==6.14.2
+
+# Chunking
+langchain-text-splitters==1.1.2
+
+# Vector store
+chromadb==1.5.9
+
+# Gemini (embeddings + generation)
+# NOTE: google-generativeai is in maintenance/deprecation; 0.8.6 is the final
+# release of this SDK. The code uses its `import google.generativeai as genai`
+# API. A future migration to the newer `google-genai` package will be needed.
+google-generativeai==0.8.6
